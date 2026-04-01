@@ -1,4 +1,4 @@
-# Data Mining Template - Naive Bayes (untuk Mahasiswa)
+# Data Mining Template - FP Growth (untuk Mahasiswa)
 
 Template ini dibuat untuk praktikum/tugas data mining berbasis **FastAPI**.
 Fokus utamanya: mahasiswa mengerjakan **logika backend** (authentication, dashboard, training, prediksi, evaluasi), karena **UI/frontend sudah disediakan**.
