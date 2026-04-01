@@ -92,7 +92,7 @@ http://127.0.0.1:8000
 
 1. Login sebagai **admin**.
 2. Upload dataset.
-3. Train model (minimal Naive Bayes).
+3. Train model.
 4. Login sebagai **user**.
 5. Pilih model lalu lakukan prediksi.
 6. Lihat hasil dan riwayat prediksi.
