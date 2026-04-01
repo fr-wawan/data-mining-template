@@ -1,4 +1,4 @@
-# Data Mining Template - Naive Bayes (untuk Mahasiswa)
+# Data Mining Template - KNN (untuk Mahasiswa)
 
 Template ini dibuat untuk praktikum/tugas data mining berbasis **FastAPI**.
 Fokus utamanya: mahasiswa mengerjakan **logika backend** (training, preprocessing, prediksi, evaluasi), karena **UI/frontend sudah disediakan**.
@@ -6,7 +6,7 @@ Fokus utamanya: mahasiswa mengerjakan **logika backend** (training, preprocessin
 ## Tujuan Template
 
 - Memberikan starter project yang siap jalan untuk eksperimen algoritma data mining.
-- Mengurangi waktu setup (auth, halaman admin/user, upload dataset, penyimpanan model sudah ada).
+- Mengurangi waktu setup.
 - Membantu mahasiswa fokus ke implementasi fitur inti machine learning, terutama **Naive Bayes**.
 
 ## Yang Sudah Disediakan
