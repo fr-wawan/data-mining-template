@@ -1,0 +1,25 @@
+/* Custom color scheme for Data Mining Lab */
+:root {
+  --bs-primary: #1f6feb;
+  --bs-primary-rgb: 31, 111, 235;
+}
+
+/* Custom background gradient */
+body.bg {
+  background:
+    radial-gradient(900px 500px at 10% 10%, rgba(31, 111, 235, 0.12), transparent 60%),
+    radial-gradient(700px 450px at 90% 20%, rgba(15, 42, 68, 0.15), transparent 55%),
+    linear-gradient(180deg, #f6f5f1, #ffffff);
+  min-height: 100vh;
+}
+
+/* Navbar gradient */
+.topbar {
+  background: linear-gradient(90deg, #0f2a44, #0b1d2f) !important;
+}
+
+/* Enhanced card styling */
+.card {
+  border: 1px solid rgba(15, 42, 68, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}

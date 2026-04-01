@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Datasets</h1>
+    <div class="text-muted">Upload CSV/Excel dan kelola dataset</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/admin">Dashboard</a>
+    <a class="btn btn-primary" href="/admin/datasets/upload">Upload</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nama</th>
+          <th>Jenis</th>
+          <th>File</th>
+          <th>Dibuat</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in datasets %}
+          <tr>
+            <td>{{ d.id }}</td>
+            <td>{{ d.name }}</td>
+            <td><span class="badge text-bg-secondary">{{ d.kind }}</span></td>
+            <td class="text-muted">{{ d.filename }}</td>
+            <td class="text-muted">{{ d.created_at }}</td>
+            <td class="text-end">
+              <form method="post" action="/admin/datasets/{{ d.id }}/delete" onsubmit="return confirm('Hapus dataset?')">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Hapus</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

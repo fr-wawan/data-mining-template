@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Form Prediksi</h1>
+    <div class="text-muted">Isi form sesuai fitur model yang dipilih</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/user">Dashboard</a>
+</div>
+
+<div class="card p-4">
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+  <form method="post" action="/user/predict" class="row g-3" id="predictForm">
+    <div class="col-md-6">
+      <label class="form-label">Model</label>
+      <select class="form-select" name="model_id" id="model_id" required>
+        {% for m in models %}
+          <option value="{{ m.id }}" 
+                  data-algorithm="{{ m.algorithm }}" 
+                  data-features='{{ (m.features or []) | tojson }}'
+                  data-feature-types='{{ (m.feature_types or {}) | tojson }}'
+                  data-feature-options='{{ (m.feature_options or {}) | tojson }}'>
+            {{ m.name }} ({{ m.algorithm }})
+          </option>
+        {% endfor %}
+      </select>
+      <div class="form-text" id="feature_hint"></div>
+    </div>
+
+    <input type="hidden" name="feature_names_json" id="feature_names_json" value="[]" />
+
+    <div class="col-12">
+      <div class="fw-semibold mb-2">Input Data</div>
+      <div id="dynamic_form" class="row g-3"></div>
+      <div class="form-text" id="dynamic_help"></div>
+    </div>
+    <div class="col-12">
+      <button class="btn btn-primary" type="submit" id="predictBtn">
+        <span id="btnText">Eksekusi Prediksi</span>
+        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+      </button>
+    </div>
+  </form>
+  
+  <!-- Loading Overlay for Prediction -->
+  <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.7); z-index: 9999;">
+    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-white">
+      <div class="spinner-border mb-3" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <h4>Memproses Prediksi...</h4>
+      <p class="text-center px-4">
+        Model sedang menganalisis data yang Anda masukkan.<br>
+        <small class="text-warning">Harap tunggu sebentar...</small>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const sel = document.getElementById('model_id');
+  const hint = document.getElementById('feature_hint');
+  const dyn = document.getElementById('dynamic_form');
+  const dynHelp = document.getElementById('dynamic_help');
+  const namesEl = document.getElementById('feature_names_json');
+  const predictForm = document.getElementById('predictForm');
+  const predictBtn = document.getElementById('predictBtn');
+  const btnText = document.getElementById('btnText');
+  const btnSpinner = document.getElementById('btnSpinner');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+
+  function el(tag, cls) {
+    const x = document.createElement(tag);
+    if (cls) x.className = cls;
+    return x;
+  }
+
+  function renderDynamic() {
+    const opt = sel.options[sel.selectedIndex];
+    const algo = opt.getAttribute('data-algorithm');
+    let feats = [];
+    let featTypes = {};
+    let featOptions = {};
+    
+    try { feats = JSON.parse(opt.getAttribute('data-features') || '[]'); } catch (e) { feats = []; }
+    try { featTypes = JSON.parse(opt.getAttribute('data-feature-types') || '{}'); } catch (e) { featTypes = {}; }
+    try { featOptions = JSON.parse(opt.getAttribute('data-feature-options') || '{}'); } catch (e) { featOptions = {}; }
+
+    dyn.innerHTML = '';
+    dynHelp.textContent = '';
+
+    if (algo === 'fpgrowth') {
+      namesEl.value = '[]';
+      const col = el('div', 'col-md-8');
+      const label = el('label', 'form-label');
+      label.textContent = 'Items (dipisah koma)';
+      const input = el('input', 'form-control');
+      input.name = 'items';
+      input.placeholder = 'milk,bread,eggs';
+      input.required = true;
+      const help = el('div', 'form-text');
+      help.textContent = 'Contoh: milk,bread';
+      col.appendChild(label);
+      col.appendChild(input);
+      col.appendChild(help);
+      dyn.appendChild(col);
+      dynHelp.textContent = 'FP-Growth menghasilkan rekomendasi berdasarkan rules.';
+      return;
+    }
+
+    if (!Array.isArray(feats) || feats.length === 0) {
+      namesEl.value = '[]';
+      dynHelp.textContent = 'Model ini tidak menyimpan daftar fitur. Train ulang model (agar metadata fitur tersimpan), atau gunakan model lain.';
+      return;
+    }
+
+    namesEl.value = JSON.stringify(feats);
+
+    feats.forEach((name, i) => {
+      const col = el('div', 'col-md-4');
+      const label = el('label', 'form-label');
+      label.textContent = name;
+      
+      const fieldType = featTypes[name];
+      
+      if (fieldType === 'categorical' && featOptions[name] && Array.isArray(featOptions[name])) {
+        // Render select dropdown for categorical fields
+        const select = el('select', 'form-select');
+        select.name = 'v_' + i;
+        select.required = true;
+        
+        // Add placeholder option
+        const placeholderOpt = el('option');
+        placeholderOpt.value = '';
+        placeholderOpt.textContent = '-- Pilih ' + name + ' --';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = true;
+        select.appendChild(placeholderOpt);
+        
+        // Add options from metadata
+        featOptions[name].forEach(optVal => {
+          const opt = el('option');
+          opt.value = optVal;
+          opt.textContent = optVal;
+          select.appendChild(opt);
+        });
+        
+        col.appendChild(label);
+        col.appendChild(select);
+      } else {
+        // Render numeric input for numeric fields
+        const input = el('input', 'form-control');
+        input.name = 'v_' + i;
+        input.placeholder = 'isi nilai';
+        input.required = true;
+        
+        if (fieldType === 'numeric') {
+          input.type = 'number';
+          input.step = 'any';
+        } else {
+          input.type = 'text';
+        }
+        
+        col.appendChild(label);
+        col.appendChild(input);
+      }
+      
+      dyn.appendChild(col);
+    });
+
+    dynHelp.textContent = 'Isi semua field sesuai data yang ingin diprediksi.';
+  }
+
+  function updateHint() {
+    const opt = sel.options[sel.selectedIndex];
+    const algo = opt.getAttribute('data-algorithm');
+    let feats = [];
+    try {
+      feats = JSON.parse(opt.getAttribute('data-features') || '[]');
+    } catch (e) {
+      feats = [];
+    }
+
+    if (algo === 'fpgrowth') {
+      hint.textContent = 'FP-Growth: isi field items (dipisah koma).';
+      return;
+    }
+
+    if (Array.isArray(feats) && feats.length) {
+      hint.textContent = 'Fitur yang perlu diisi: ' + feats.join(', ') + ' (tanpa kolom target).';
+    } else {
+      hint.textContent = 'Model ini tidak menyimpan daftar fitur; train ulang model agar form bisa dibuat otomatis.';
+    }
+  }
+
+  // Show loading overlay when form is submitted
+  predictForm.addEventListener('submit', function(e) {
+    btnText.textContent = 'Memproses...';
+    btnSpinner.classList.remove('d-none');
+    predictBtn.disabled = true;
+    loadingOverlay.classList.remove('d-none');
+  });
+
+  sel.addEventListener('change', () => { updateHint(); renderDynamic(); });
+  updateHint();
+  renderDynamic();
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Training Model</h1>
+    <div class="text-muted">Pilih dataset dan algoritma</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/admin/models">Models</a>
+</div>
+
+<div class="card p-4">
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" action="/admin/train" enctype="multipart/form-data" class="row g-3" id="trainForm">
+    <div class="col-md-6">
+      <label class="form-label">Algoritma</label>
+      <select class="form-select" name="algorithm" id="algo" required>
+        <option value="naive_bayes">Naive Bayes</option>
+      </select>
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label">Dataset</label>
+      <select class="form-select" name="dataset_id" required>
+        {% for d in datasets %}
+          <option value="{{ d.id }}">{{ d.name }} ({{ d.kind }})</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Upload dataset baru lewat menu <a href="/admin/datasets/upload">Upload Dataset</a>.</div>
+    </div>
+
+    <div class="col-12">
+      <div class="fw-semibold mb-2">Parameter Training</div>
+      <div id="params" class="row g-3"></div>
+      <input type="hidden" name="params_json" id="params_json" value="{}" />
+      <div class="form-text">Parameter akan berubah otomatis sesuai algoritma yang dipilih.</div>
+    </div>
+
+    <div class="col-12">
+      <button class="btn btn-primary" type="submit" id="trainBtn">
+        <span id="btnText">Train</span>
+        <span id="btnSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+      </button>
+    </div>
+  </form>
+  
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(0,0,0,0.7); z-index: 9999;">
+    <div class="d-flex flex-column align-items-center justify-content-center h-100 text-white">
+      <div class="spinner-border mb-3" style="width: 4rem; height: 4rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <h4>Training Model...</h4>
+      <p class="text-center px-4">
+        Proses training sedang berjalan. Ini bisa memakan waktu beberapa detik hingga menit tergantung ukuran dataset.<br>
+        <small class="text-warning">Harap jangan tutup atau refresh halaman ini.</small>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const algoEl = document.getElementById('algo');
+  const paramsWrap = document.getElementById('params');
+  const paramsJsonEl = document.getElementById('params_json');
+  const trainForm = document.getElementById('trainForm');
+  const trainBtn = document.getElementById('trainBtn');
+  const btnText = document.getElementById('btnText');
+  const btnSpinner = document.getElementById('btnSpinner');
+  const loadingOverlay = document.getElementById('loadingOverlay');
+
+  const PARAM_SCHEMAS = {
+    naive_bayes: [
+      { name: 'target_col', label: 'Target Column', type: 'text', default: 'target', help: 'Nama kolom target (label)' }
+    ],
+    knn: [
+      { name: 'target_col', label: 'Target Column', type: 'text', default: 'target', help: 'Nama kolom target (label)' },
+      { name: 'n_neighbors', label: 'n_neighbors', type: 'number', default: 5, min: 1, help: 'Jumlah tetangga terdekat' }
+    ],
+    kmeans: [
+      { name: 'n_clusters', label: 'n_clusters', type: 'number', default: 3, min: 2, help: 'Jumlah cluster' }
+    ],
+    fpgrowth: [
+      { name: 'min_support', label: 'min_support', type: 'number', default: 0.2, step: 0.01, min: 0, max: 1, help: 'Minimum support' },
+      { name: 'min_confidence', label: 'min_confidence', type: 'number', default: 0.6, step: 0.01, min: 0, max: 1, help: 'Minimum confidence' }
+    ]
+  };
+
+  function coerceValue(field, raw) {
+    if (field.type === 'number') {
+      const v = Number(raw);
+      return Number.isFinite(v) ? v : field.default;
+    }
+    return String(raw ?? '');
+  }
+
+  function readParams(schema) {
+    const out = {};
+    for (const f of schema) {
+      const el = document.getElementById('param_' + f.name);
+      if (!el) continue;
+      out[f.name] = coerceValue(f, el.value);
+    }
+    return out;
+  }
+
+  function renderParams() {
+    const algo = algoEl.value;
+    const schema = PARAM_SCHEMAS[algo] || [];
+    paramsWrap.innerHTML = '';
+
+    for (const f of schema) {
+      const col = document.createElement('div');
+      col.className = 'col-md-6';
+
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.textContent = f.label;
+
+      const input = document.createElement('input');
+      input.className = 'form-control';
+      input.id = 'param_' + f.name;
+      input.type = f.type;
+      input.value = String(f.default ?? '');
+      if (f.step != null) input.step = String(f.step);
+      if (f.min != null) input.min = String(f.min);
+      if (f.max != null) input.max = String(f.max);
+
+      const help = document.createElement('div');
+      help.className = 'form-text';
+      help.textContent = f.help || '';
+
+      input.addEventListener('input', () => {
+        paramsJsonEl.value = JSON.stringify(readParams(schema));
+      });
+
+      col.appendChild(label);
+      col.appendChild(input);
+      col.appendChild(help);
+      paramsWrap.appendChild(col);
+    }
+
+    paramsJsonEl.value = JSON.stringify(readParams(schema));
+  }
+
+  // Show loading overlay when form is submitted
+  trainForm.addEventListener('submit', function(e) {
+    btnText.textContent = 'Training...';
+    btnSpinner.classList.remove('d-none');
+    trainBtn.disabled = true;
+    loadingOverlay.classList.remove('d-none');
+  });
+
+  algoEl.addEventListener('change', renderParams);
+  renderParams();
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Models</h1>
+    <div class="text-muted">Model yang sudah ditraining</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/admin">Dashboard</a>
+    <a class="btn btn-primary" href="/admin/train">Train</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nama</th>
+          <th>Algoritma</th>
+          <th>Dataset</th>
+          <th>Dibuat</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in models %}
+          <tr>
+            <td>{{ m.id }}</td>
+            <td>{{ m.name }}</td>
+            <td><span class="badge text-bg-primary">{{ m.algorithm }}</span></td>
+            <td class="text-muted">{{ datasets.get(m.dataset_id).name if datasets.get(m.dataset_id) else m.dataset_id }}</td>
+            <td class="text-muted">{{ m.created_at }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="/admin/models/{{ m.id }}">Detail</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

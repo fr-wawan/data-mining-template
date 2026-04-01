@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Detail Model</h1>
+    <div class="text-muted">{{ model.name }}</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/admin/models">Kembali</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12">
+    <div class="card p-3">
+      <div class="fw-semibold">Info</div>
+      <div class="mt-2 small">
+        <div><span class="text-muted">Algorithm:</span> {{ model.algorithm }}</div>
+        <div><span class="text-muted">Dataset:</span> {{ dataset.name if dataset else model.dataset_id }}</div>
+        <div><span class="text-muted">File:</span> <code>{{ model.file_path }}</code></div>
+        {% if model.algorithm in ['naive_bayes','knn'] %}
+          <div class="mt-2">
+            <span class="text-muted">Accuracy:</span> <strong>{{ '%.2f%%'|format(model.metrics_json.get('accuracy', 0) * 100) }}</strong>
+            <span class="text-muted ms-3">Precision:</span> {{ '%.3f'|format(model.metrics_json.get('precision', 0)) }}
+            <span class="text-muted ms-3">Recall:</span> {{ '%.3f'|format(model.metrics_json.get('recall', 0)) }}
+            <span class="text-muted ms-3">F1:</span> {{ '%.3f'|format(model.metrics_json.get('f1_score', 0)) }}
+          </div>
+        {% endif %}
+        {% if model.algorithm == 'kmeans' %}
+          <div class="mt-2">
+            <span class="text-muted">Silhouette Score:</span> <strong>{{ '%.3f'|format(model.metrics_json.get('silhouette_score', 0)) }}</strong>
+            <span class="text-muted ms-3">Davies-Bouldin Index:</span> <strong>{{ '%.3f'|format(model.metrics_json.get('davies_bouldin_score', 0)) }}</strong>
+            <span class="text-muted ms-3">Inertia:</span> {{ '%.2f'|format(model.metrics_json.get('inertia', 0)) }}
+          </div>
+        {% endif %}
+        {% if model.algorithm == 'fpgrowth' %}
+          <div class="mt-2">
+            <span class="text-muted">Total Rules:</span> <strong>{{ model.metrics_json.get('rules', [])|length }}</strong>
+            <span class="text-muted ms-3">Min Support:</span> {{ '%.2f'|format(model.metrics_json.get('min_support', 0)) }}
+            <span class="text-muted ms-3">Min Confidence:</span> {{ '%.2f'|format(model.metrics_json.get('min_confidence', 0)) }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if model.algorithm in ['naive_bayes','knn'] and model.metrics_json.get('confusion_matrix') %}
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Confusion Matrix</div>
+        <div class="mt-3">
+          <canvas id="cm" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+    <script>
+      const cm = {{ model.metrics_json.get('confusion_matrix') | tojson }};
+      const labels = {{ model.metrics_json.get('labels') | tojson }};
+      // Simple visualization: show diagonal vs off-diagonal counts
+      const diag = cm.map((row, i) => row[i] || 0);
+      const off = cm.map((row, i) => row.reduce((a,b)=>a+b,0) - (row[i]||0));
+      new Chart(document.getElementById('cm'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Benar (diagonal)', data: diag },
+            { label: 'Salah (off-diagonal)', data: off }
+          ]
+        },
+        options: { responsive: true, stacked: true }
+      });
+    </script>
+  {% endif %}
+
+  {% if model.algorithm == 'kmeans' and model.metrics_json.get('points_2d') %}
+    <!-- Cluster Visualization -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Visualisasi Cluster (2D sederhana)</div>
+        <div class="mt-3">
+          <canvas id="scatter" height="140"></canvas>
+        </div>
+      </div>
+    </div>
+    <script>
+      const pts = {{ model.metrics_json.get('points_2d') | tojson }};
+      const lbl = {{ model.metrics_json.get('labels') | tojson }};
+      const ds = {};
+      for (let i = 0; i < pts.length; i++) {
+        const k = lbl[i];
+        ds[k] = ds[k] || [];
+        ds[k].push({x: pts[i][0], y: pts[i][1]});
+      }
+      const datasets = Object.keys(ds).map(k => ({label: 'Cluster ' + k, data: ds[k]}));
+      new Chart(document.getElementById('scatter'), {
+        type: 'scatter',
+        data: { datasets },
+        options: { responsive: true }
+      });
+    </script>
+    
+    <!-- Cluster Characteristics - Text Summary -->
+    {% if model.metrics_json.get('cluster_characteristics') %}
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Ringkasan Karakteristik Cluster</div>
+        <p class="text-muted small mb-2">Rangkuman range (min - max) setiap fitur per cluster.</p>
+        <div class="mt-2">
+          {% for cluster_id, characteristics in model.metrics_json.get('cluster_characteristics').items() %}
+            <div class="mb-3 p-3 bg-light rounded">
+              <strong class="text-primary">Cluster {{ cluster_id }}</strong>
+              <span class="text-muted small">({{ model.metrics_json.get('cluster_counts', {}).get(cluster_id, 0) }} data points)</span>
+              <ul class="mb-0 mt-1 small">
+                {% for feature, stats in characteristics.items() %}
+                  <li><strong>{{ feature }}</strong>: {{ '%.1f'|format(stats.min) }} - {{ '%.1f'|format(stats.max) }} (rata-rata: {{ '%.1f'|format(stats.mean) }})</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Cluster Characteristics - Detail Table -->
+    {% if model.metrics_json.get('cluster_characteristics') %}
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Detail Karakteristik Cluster</div>
+        <div class="mt-3">
+          {% for cluster_id, characteristics in model.metrics_json.get('cluster_characteristics').items() %}
+            <div class="mb-3">
+              <h6 class="text-primary">Cluster {{ cluster_id }}</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Feature</th>
+                      <th>Mean</th>
+                      <th>Std Dev</th>
+                      <th>Min</th>
+                      <th>Max</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for feature, stats in characteristics.items() %}
+                      <tr>
+                        <td><strong>{{ feature }}</strong></td>
+                        <td>{{ '%.3f'|format(stats.mean) }}</td>
+                        <td>{{ '%.3f'|format(stats.std) }}</td>
+                        <td>{{ '%.3f'|format(stats.min) }}</td>
+                        <td>{{ '%.3f'|format(stats.max) }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+
+  {% if model.algorithm == 'fpgrowth' and model.metrics_json.get('rules') %}
+    <!-- Top 10 Rekomendasi (Teks) -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Top 10 Rekomendasi Produk</div>
+        <p class="text-muted small mb-2">Berdasarkan association rules dengan confidence tertinggi.</p>
+        <div class="mt-2">
+          {% for r in model.metrics_json.get('rules')[:10] %}
+            <div class="mb-2 p-2 bg-light rounded small">
+              <strong>{{ loop.index }}.</strong>
+              Jika beli <span class="badge bg-primary">{{ r.antecedents | join(', ') }}</span>
+              maka rekomendasi: <span class="badge bg-success">{{ r.consequents | join(', ') }}</span>
+              <span class="text-muted">(confidence: {{ '%.1f%%'|format(r.confidence * 100) }}, lift: {{ '%.2f'|format(r.lift) }})</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Association Rules Table -->
+    <div class="col-12">
+      <div class="card p-3">
+        <div class="fw-semibold">Semua Association Rules</div>
+        <div class="table-responsive mt-2">
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Jika Beli</th>
+                <th>Maka Rekomendasi</th>
+                <th>Support</th>
+                <th>Confidence</th>
+                <th>Lift</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in model.metrics_json.get('rules')[:50] %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ r.antecedents | join(', ') }}</td>
+                  <td><strong>{{ r.consequents | join(', ') }}</strong></td>
+                  <td>{{ '%.3f'|format(r.support) }}</td>
+                  <td>{{ '%.1f%%'|format(r.confidence * 100) }}</td>
+                  <td>{{ '%.2f'|format(r.lift) }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

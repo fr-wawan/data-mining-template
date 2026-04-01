@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Riwayat Prediksi</h1>
+    <div class="text-muted">Maks 100 data terakhir</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-secondary" href="/user">Dashboard</a>
+    <a class="btn btn-primary" href="/user/predict">Prediksi</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Model</th>
+          <th>Waktu</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ models.get(r.model_id).name if models.get(r.model_id) else r.model_id }}</td>
+            <td class="text-muted">{{ r.created_at }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" href="/user/history/{{ r.id }}">Detail</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

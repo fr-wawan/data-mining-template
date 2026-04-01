@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h1 class="h4 mb-1">Manajemen User</h1>
+    <div class="text-muted">Tambah/hapus user</div>
+  </div>
+  <a class="btn btn-outline-secondary" href="/admin">Dashboard</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <div class="card p-4">
+      <div class="fw-semibold mb-2">Tambah User</div>
+      <form method="post" action="/admin/users/create" class="row g-2">
+        <div class="col-12">
+          <label class="form-label">Username</label>
+          <input class="form-control" name="username" required />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Password</label>
+          <input class="form-control" name="password" required />
+        </div>
+        <div class="col-12">
+          <label class="form-label">Role</label>
+          <select class="form-select" name="role">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <button class="btn btn-primary" type="submit">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Dibuat</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+              <tr>
+                <td>{{ u.id }}</td>
+                <td>{{ u.username }}</td>
+                <td><span class="badge text-bg-secondary">{{ u.role }}</span></td>
+                <td class="text-muted">{{ u.created_at }}</td>
+                <td class="text-end">
+                  <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Hapus user?')">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Hapus</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
