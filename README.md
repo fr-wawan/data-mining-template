@@ -66,7 +66,7 @@ pip install -r requirements.txt
 2. Inisialisasi database + user awal:
 
 ```bash
-python scripts/init_db.py
+python3 -m scripts.init_db
 ```
 
 3. Jalankan aplikasi:
